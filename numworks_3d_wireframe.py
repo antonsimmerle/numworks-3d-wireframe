@@ -2,8 +2,6 @@ from kandinsky import color, fill_rect, set_pixel
 from math import sin, cos
 from time import sleep
 
-# TODO: add 3d projection and rotation matrixes in x, y, z
-
 X_MAX = 320
 Y_MAX = 222
 X_CEN = X_MAX // 2
@@ -16,18 +14,32 @@ SCALE = 100
 FRAME_TIME = 1/30
 ang = 0
 
-VERTICES = [
-  (-0.5, -0.5),
-  (-0.5, 0.5),
-  (0.5,  -0.5),
-  (0.5,  0.5)
+VERTS = [
+  (-0.5, -0.5, 0.5),  #a
+  (0.5,  -0.5, 0.5),  #b
+  (0.5,  -0.5, -0.5), #c
+  (-0.5, -0.5, -0.5), #d
+  (-0.5, 0.5, 0.5),   #e
+  (0.5,  0.5, 0.5),   #f
+  (0.5,  0.5, -0.5),  #g
+  (-0.5, 0.5, -0.5),  #h
 ]
 
 EDGES = [
   (0, 1),
-  (1, 3),
-  (2, 0),
-  (2, 3)
+  (1, 2),
+  (2, 3),
+  (3, 0),
+  
+  (4, 5),
+  (5, 6),
+  (6, 7),
+  (7, 4),
+
+  (0, 4),
+  (1, 5),
+  (2, 6),
+  (3, 7),
 ]
 
 def r_to_a(p):
@@ -64,9 +76,10 @@ def draw_line(r1, r2):
       D = D + 2*(dy - dx)
 
 def mat_vec(mat, vec):
-  return (vec[0]*mat[0][0] + vec[1]*mat[0][1],
-          vec[0]*mat[1][0] + vec[1]*mat[1][1])
-  
+  return (vec[0]*mat[0][0] + vec[1]*mat[0][1] + vec[2]*mat[0][2],
+          vec[0]*mat[1][0] + vec[1]*mat[1][1] + vec[2]*mat[1][2],
+          vec[0]*mat[2][0] + vec[1]*mat[2][1] + vec[2]*mat[2][2])
+
 def draw():
   global ang
 
@@ -75,23 +88,32 @@ def draw():
   
   s = sin(ang)
   c = cos(ang)
-  R = [(c, -s),
-       (s, c )]
-
-  rotated_vertices = []
-  for p in VERTICES:
-    rotated_point = mat_vec(R, p)
-    rotated_vertices.append(rotated_point)
+  Rx = [( 1,  0,  0),
+        ( 0,  c, -s),
+        ( 0,  s,  c)]
+  Ry = [( c,  0,  s),
+        ( 0,  1,  0),
+        (-s,  0,  c)]
+  Rz = [( c, -s,  0),
+        ( s,  c,  0),
+        ( 0,  0,  1)]
+  
+  rot_verts = []
+  for p in VERTS:
+    rot_p = mat_vec(Rx, p)
+    rot_p = mat_vec(Ry, rot_p)
+    rot_p = mat_vec(Rz, rot_p)
+    rot_verts.append(rot_p)
 
   for a, b in EDGES:
-    x1, y1 = rotated_vertices[a]
-    x2, y2 = rotated_vertices[b]
+    x1, y1, z1 = rot_verts[a]
+    x2, y2, z2 = rot_verts[b]
     draw_line((x1, y1), (x2, y2))
 
   ang += 0.1
 
 def main():
-  for _ in range(200):
+  for _ in range(100):
     draw()
     sleep(FRAME_TIME)
 
