@@ -1,7 +1,7 @@
-from kandinsky import *
+from kandinsky import set_pixel, color, draw_string
 from math import sin, cos
-from time import sleep
-from ion import *
+from time import sleep, monotonic
+from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 
 CAN_W = 320
 CAN_H = 222
@@ -11,8 +11,19 @@ CAN_CEN_Y = CAN_H // 2
 BLACK = color(0, 0, 0)
 WHITE = color(255, 255, 255)
 
+FRAME_DUR = 1/60
+
+VP_W = 2.0
+VP_H = VP_W * CAN_H / CAN_W
+CAM_Z = 2
+FOCAL_LEN = 1
+PROJ_SCALE = (FOCAL_LEN * CAN_W) / VP_W
+
+ROT_SPEED = 1.0
+
 rot_x = 0
 rot_y = 0
+
 sx = 0.0
 cx = 1.0
 sy = 0.0
@@ -58,10 +69,8 @@ EDGES = [
 
 proj_verts = [[0, 0] for _ in VERTS]
 
-VP_W = 2.0
-VP_H = VP_W * CAN_H / CAN_W
-CAM_Z = 2
-FOCAL_LEN = 1
+def log(msg):
+  draw_string(str(msg), 10, 10, BLACK)
 
 def draw_line(x0, y0, x1, y1, col):  
   dx = x1 - x0
@@ -92,9 +101,15 @@ def draw_line(x0, y0, x1, y1, col):
     else:
       D = D + 2*dy
 
+def draw_edges(col):
+  for a, b in EDGES:
+    pa = proj_verts[a]
+    pb = proj_verts[b]
+    draw_line(pa[0], pa[1], pb[0], pb[1], col)
+
 def draw():
-  # TODO: erase only lines, not full screen
-  fill_rect(0, 0, CAN_W, CAN_H, WHITE)
+  # TODO: erase lines after calculating new vertices
+  draw_edges(WHITE)
   
   for i, p in enumerate(VERTS):
     x, y, z = p
@@ -109,22 +124,20 @@ def draw():
     r_yz = -r_xx * sy + r_xz * cy
 
     # Project
-    # TODO: add near plane clipping
     depth = r_yz + CAM_Z
-    proj_x = (r_yx * FOCAL_LEN * CAN_W) / (VP_W * depth)
-    proj_y = (r_yy * FOCAL_LEN * CAN_H) / (VP_H * depth)
+    if depth <= 0:
+      continue
+    
+    proj_x = (r_yx / depth) * PROJ_SCALE
+    proj_y = (r_yy / depth) * PROJ_SCALE
     
     p = proj_verts[i]
     p[0] = int(proj_x + CAN_CEN_X)
     p[1] = int(CAN_CEN_Y - proj_y)
 
-  # Draw
-  for a, b in EDGES:
-    pa = proj_verts[a]
-    pb = proj_verts[b]
-    draw_line(pa[0], pa[1], pb[0], pb[1], BLACK)
+  draw_edges(BLACK)
 
-def update():
+def update(dt):
   global rot_x, rot_y, sx, cx, sy, cy
 
   rot_dir_x = keydown(KEY_DOWN) - keydown(KEY_UP)
@@ -132,12 +145,14 @@ def update():
 
   if rot_dir_x == 0 and rot_dir_y == 0:
     return False
-  if rot_dir_x:
-    rot_x += rot_dir_x * 0.3
+
+  if rot_dir_x != 0:
+    rot_x += rot_dir_x * dt * ROT_SPEED
     sx = sin(rot_x)
     cx = cos(rot_x)
-  if rot_dir_y:
-    rot_y += rot_dir_y * 0.3
+
+  if rot_dir_y != 0:
+    rot_y += rot_dir_y * dt * ROT_SPEED
     sy = sin(rot_y)
     cy = cos(rot_y)
 
@@ -145,11 +160,19 @@ def update():
 
 def main():
   draw()
+  prev_start = monotonic()
+  
   while True:
-    if update():
+    start = monotonic()
+    dt = start - prev_start
+    prev_start = start
+    
+    if update(dt):
       draw()
-    # TODO: sleep the actual time difference
-    # TODO: Manage overshooting the deadline
-    sleep(1/30)
+
+    elapsed = monotonic() - start
+    remaining = FRAME_DUR - elapsed
+    if remaining > 0:
+      sleep(remaining)
 
 main()
