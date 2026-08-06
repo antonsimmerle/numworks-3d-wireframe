@@ -1,7 +1,7 @@
-from kandinsky import set_pixel, color, draw_string
+from kandinsky import set_pixel, color, draw_string, fill_rect
 from math import sin, cos
 from time import sleep, monotonic
-from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
+from ion import *
 
 CAN_W = 320
 CAN_H = 222
@@ -11,25 +11,24 @@ CAN_CEN_Y = CAN_H // 2
 BLACK = color(0, 0, 0)
 WHITE = color(255, 255, 255)
 
-FRAME_DUR = 1/60
-
 VP_W = 2.0
 VP_H = VP_W * CAN_H / CAN_W
-CAM_Z = 2
+obj_z = 2
 FOCAL_LEN = 1
 PROJ_SCALE = (FOCAL_LEN * CAN_W) / VP_W
 
 ROT_SPEED = 1.0
+MOVE_SPEED_Z = 1.0
 
 rot_x = 0
 rot_y = 0
 
-sx = 0.0
-cx = 1.0
-sy = 0.0
-cy = 1.0
+sin_x = 0.0
+cos_x = 1.0
+sin_y = 0.0
+cos_y = 1.0
 
-VERTS = [
+VERTS = (
   (-0.5, -0.5, 0.5),
   (0.5, -0.5, 0.5),
   (0.5, -0.5, -0.5),
@@ -42,9 +41,9 @@ VERTS = [
   (0.2, 0, 0.2),
   (0.2, 0, -0.2),
   (-0.2, 0, -0.2),
-]
+)
 
-EDGES = [
+EDGES = (
   (0, 1),
   (1, 2),
   (2, 3),
@@ -65,69 +64,46 @@ EDGES = [
   (5, 9),
   (6, 10),
   (7, 11),
-]
+)
 
 proj_verts = [[0, 0] for _ in VERTS]
 
-def log(msg):
-  draw_string(str(msg), 10, 10, BLACK)
-
-def draw_line(x0, y0, x1, y1, col):  
-  dx = x1 - x0
-  dy = y1 - y0
-  x_dir = 1 if dx >= 0 else -1
-  y_dir = 1 if dy >= 0 else -1
-  dx = abs(dx)
-  dy = abs(dy)
+def draw_line(x0, y0, x1, y1, col):
+  dx = abs(x1 - x0)
+  dy = -abs(y1 - y0)
+  sx = 1 if x0 < x1 else -1
+  sy = 1 if y0 < y1 else -1
   
-  if dx > dy:
-    prim_x, prim_y, sec_x, sec_y = x_dir, 0, 0, y_dir
-  else:
-    dx, dy = dy, dx
-    prim_x, prim_y, sec_x, sec_y = 0, y_dir, x_dir, 0
+  err = dx + dy
+  while True:
+    set_pixel(x0, y0, col)
 
-  D = 2*dy - dx
-  x = x0
-  y = y0
-  for _ in range(dx + 1):
-    set_pixel(x, y, col)
-    x += prim_x
-    y += prim_y
-    
-    if D >= 0:
-      x += sec_x
-      y += sec_y
-      D = D + 2*(dy - dx)
-    else:
-      D = D + 2*dy
+    if x0 == x1 and y0 == y1:
+      break
 
-def draw_edges(col):
-  for a, b in EDGES:
-    pa = proj_verts[a]
-    pb = proj_verts[b]
-    draw_line(pa[0], pa[1], pb[0], pb[1], col)
+    e2 = 2 * err
+    if e2 >= dy:
+      err += dy
+      x0 += sx
+    if e2 <= dx:
+      err += dx
+      y0 += sy
 
 def draw():
-  # TODO: erase lines after calculating new vertices
-  draw_edges(WHITE)
-  
   for i, p in enumerate(VERTS):
     x, y, z = p
     
     # Rotate around X
     r_xx = x
-    r_xy = y * cx - z * sx
-    r_xz = y * sx + z * cx
+    r_xy = y * cos_x - z * sin_x
+    r_xz = y * sin_x + z * cos_x
     # Rotate around Y
-    r_yx = r_xx * cy + r_xz * sy
+    r_yx = r_xx * cos_y + r_xz * sin_y
     r_yy = r_xy
-    r_yz = -r_xx * sy + r_xz * cy
+    r_yz = -r_xx * sin_y + r_xz * cos_y
 
     # Project
-    depth = r_yz + CAM_Z
-    if depth <= 0:
-      continue
-    
+    depth = r_yz + obj_z
     proj_x = (r_yx / depth) * PROJ_SCALE
     proj_y = (r_yy / depth) * PROJ_SCALE
     
@@ -135,26 +111,37 @@ def draw():
     p[0] = int(proj_x + CAN_CEN_X)
     p[1] = int(CAN_CEN_Y - proj_y)
 
-  draw_edges(BLACK)
+  # Draw
+  fill_rect(0, 0, CAN_W, CAN_H, WHITE)
+  for a, b in EDGES:
+    pa = proj_verts[a]
+    pb = proj_verts[b]
+    draw_line(pa[0], pa[1], pb[0], pb[1], BLACK)
 
 def update(dt):
-  global rot_x, rot_y, sx, cx, sy, cy
+  global rot_x, rot_y, sin_x, cos_x, sin_y, cos_y, obj_z
 
-  rot_dir_x = keydown(KEY_DOWN) - keydown(KEY_UP)
-  rot_dir_y = keydown(KEY_RIGHT) - keydown(KEY_LEFT)
+  rot_dir_x = keydown(KEY_TWO) - keydown(KEY_EIGHT)
+  rot_dir_y = keydown(KEY_SIX) - keydown(KEY_FOUR)
+  
+  move_dir_z = keydown(KEY_SEVEN) - keydown(KEY_NINE)
 
-  if rot_dir_x == 0 and rot_dir_y == 0:
+  if (rot_dir_x == 0 and
+      rot_dir_y == 0 and
+      move_dir_z == 0):
     return False
 
   if rot_dir_x != 0:
     rot_x += rot_dir_x * dt * ROT_SPEED
-    sx = sin(rot_x)
-    cx = cos(rot_x)
-
+    sin_x = sin(rot_x)
+    cos_x = cos(rot_x)
   if rot_dir_y != 0:
     rot_y += rot_dir_y * dt * ROT_SPEED
-    sy = sin(rot_y)
-    cy = cos(rot_y)
+    sin_y = sin(rot_y)
+    cos_y = cos(rot_y)
+
+  if move_dir_z != 0:
+    obj_z += move_dir_z * dt * MOVE_SPEED_Z
 
   return True
 
@@ -169,10 +156,5 @@ def main():
     
     if update(dt):
       draw()
-
-    elapsed = monotonic() - start
-    remaining = FRAME_DUR - elapsed
-    if remaining > 0:
-      sleep(remaining)
 
 main()
