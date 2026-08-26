@@ -11,10 +11,13 @@ SCR_CEN_Y = SCR_H // 2
 BLACK = color(0, 0, 0)
 WHITE = color(255, 255, 255)
 
-PROJ_S = 100
+VP_W = 2.0
+FL = 1.0
+PROJ_S = FL * SCR_W / VP_W
 
 ROT_SPEED = 1.0
 
+OBJ_Z = 2.0
 rot_x = 0.0
 rot_y = 0.0
 
@@ -49,7 +52,7 @@ EDGES = (
   (3, 7),
 )
 
-cam_verts = [[0.0, 0.0] for _ in VERTS]
+cam_verts = [[0.0, 0.0, 0.0] for _ in VERTS]
 
 def bresenham(x0, y0, x1, y1):
   x0 = int(x0)
@@ -92,16 +95,17 @@ def draw():
 
     cam_verts[i][0] = x2
     cam_verts[i][1] = y2
+    cam_verts[i][2] = z2 + OBJ_Z
 
   fill_rect(0, 0, SCR_W, SCR_H, WHITE)
   for a, b in EDGES:
-    ax, ay = cam_verts[a]
-    bx, by = cam_verts[b]
+    ax, ay, az = cam_verts[a]
+    bx, by, bz = cam_verts[b]
 
-    s_ax = SCR_CEN_X + ax * PROJ_S
-    s_ay = SCR_CEN_Y - ay * PROJ_S
-    s_bx = SCR_CEN_X + bx * PROJ_S
-    s_by = SCR_CEN_Y - by * PROJ_S
+    s_ax = SCR_CEN_X + ax / az * PROJ_S
+    s_ay = SCR_CEN_Y - ay / az * PROJ_S
+    s_bx = SCR_CEN_X + bx / bz * PROJ_S
+    s_by = SCR_CEN_Y - by / bz * PROJ_S
     
     bresenham(s_ax, s_ay, s_bx, s_by)
 
