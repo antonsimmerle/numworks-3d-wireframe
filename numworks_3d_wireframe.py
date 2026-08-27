@@ -1,7 +1,7 @@
 from kandinsky import set_pixel, color, fill_rect
 from math import sin, cos
 from time import monotonic
-from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_TWO, KEY_FOUR, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE
+from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_TWO, KEY_FOUR, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE, KEY_FIVE
 
 SCR_W = 320
 SCR_H = 222
@@ -145,6 +145,20 @@ def update(dt):
 
   if trans_dir_z:
     obj_z += trans_dir_z * dt * TRANS_SPEED
+    updated = True
+
+  if keydown(KEY_FIVE):
+    rot_x = 0.0
+    rot_y = 0.0
+    obj_x = 0.0
+    obj_y = 0.0
+    obj_z = 2.0
+
+    sin_x = 0.0
+    cos_x = 1.0
+    sin_y = 0.0
+    cos_y = 1.0
+
     updated = True
 
   return updated
