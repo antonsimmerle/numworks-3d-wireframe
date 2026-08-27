@@ -1,7 +1,7 @@
 from kandinsky import set_pixel, color, fill_rect
 from math import sin, cos
 from time import monotonic
-from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
+from ion import keydown, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_TWO, KEY_FOUR, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE
 
 SCR_W = 320
 SCR_H = 222
@@ -16,8 +16,11 @@ FL = 1.0
 PROJ_S = FL * SCR_W / VP_W
 
 ROT_SPEED = 1.0
+TRANS_SPEED = 1.0
 
-OBJ_Z = 2.0
+obj_x = 0.0
+obj_y = 0.0
+obj_z = 2.0
 rot_x = 0.0
 rot_y = 0.0
 
@@ -93,9 +96,9 @@ def draw():
     y2 = y1
     z2 = -x1 * sin_y + z1 * cos_y
 
-    cam_verts[i][0] = x2
-    cam_verts[i][1] = y2
-    cam_verts[i][2] = z2 + OBJ_Z
+    cam_verts[i][0] = x2 + obj_x
+    cam_verts[i][1] = y2 + obj_y
+    cam_verts[i][2] = z2 + obj_z
 
   fill_rect(0, 0, SCR_W, SCR_H, WHITE)
   for a, b in EDGES:
@@ -110,10 +113,13 @@ def draw():
     bresenham(s_ax, s_ay, s_bx, s_by)
 
 def update(dt):
-  global rot_x, rot_y, sin_x, cos_x, sin_y, cos_y
+  global rot_x, rot_y, sin_x, cos_x, sin_y, cos_y, obj_x, obj_y, obj_z
 
   rot_dir_x = keydown(KEY_UP) - keydown(KEY_DOWN)
   rot_dir_y = keydown(KEY_LEFT) - keydown(KEY_RIGHT)
+  trans_dir_x = keydown(KEY_SIX) - keydown(KEY_FOUR)
+  trans_dir_y = keydown(KEY_EIGHT) - keydown(KEY_TWO)
+  trans_dir_z = keydown(KEY_NINE) - keydown(KEY_SEVEN)
 
   updated = False
 
@@ -127,6 +133,18 @@ def update(dt):
     rot_y += rot_dir_y * dt * ROT_SPEED
     sin_y = sin(rot_y)
     cos_y = cos(rot_y)
+    updated = True
+
+  if trans_dir_x:
+    obj_x += trans_dir_x * dt * TRANS_SPEED
+    updated = True
+
+  if trans_dir_y:
+    obj_y += trans_dir_y * dt * TRANS_SPEED
+    updated = True
+
+  if trans_dir_z:
+    obj_z += trans_dir_z * dt * TRANS_SPEED
     updated = True
 
   return updated
