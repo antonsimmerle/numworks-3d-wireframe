@@ -11,9 +11,15 @@ SCR_CEN_Y = SCR_H // 2
 BLACK = color(0, 0, 0)
 WHITE = color(255, 255, 255)
 
+LEFT = 8
+RIGHT = 4
+BOTTOM = 2
+TOP = 1
+
 VP_W = 2.0
 FL = 1.0
 PROJ_S = FL * SCR_W / VP_W
+NEAR = 0.05
 
 ROT_SPEED = 1.0
 TRANS_SPEED = 1.0
@@ -83,6 +89,58 @@ def bresenham(x0, y0, x1, y1):
       err += dx
       y0 += sy
 
+def outcode(x, y):
+  code = 0
+  
+  if x < 0:
+    code |= LEFT
+  elif x > (SCR_W - 1):
+    code |= RIGHT
+
+  if y > SCR_H - 1:
+    code |= BOTTOM
+  elif y < 0:
+    code |= TOP
+
+  return code
+
+def cohen_sutherland(x0, y0, x1, y1):
+  while True:
+    c0 = outcode(x0, y0)
+    c1 = outcode(x1, y1)
+    
+    if (c0 | c1) == 0:
+      return x0, y0, x1, y1
+    if (c0 & c1) != 0:
+      return None
+  
+    out = c0 if c0 != 0 else c1
+
+    if out & LEFT:
+      t = (0 - x0) / (x1 - x0)
+      x = 0
+      y = y0 + t * (y1 - y0)
+
+    elif out & RIGHT:
+      t = ((SCR_W - 1) - x0) / (x1 - x0)
+      x = SCR_W - 1
+      y = y0 + t * (y1 - y0)
+
+    elif out & BOTTOM:
+      t = ((SCR_H - 1) - y0) / (y1 - y0)
+      x = x0 + t * (x1 - x0)
+      y = SCR_H - 1
+
+    elif out & TOP:
+      t = (0 - y0) / (y1 - y0)
+      x = x0 + t * (x1 - x0)
+      y = 0
+
+    if out == c0:
+      x0, y0 = x, y
+    else:
+      x1, y1 = x, y
+
 def draw():
   for i, p in enumerate(VERTS):
     x, y, z = p
@@ -100,17 +158,36 @@ def draw():
     cam_verts[i][1] = y2 + obj_y
     cam_verts[i][2] = z2 + obj_z
 
+  # Near-plane clipping and drawing
   fill_rect(0, 0, SCR_W, SCR_H, WHITE)
   for a, b in EDGES:
     ax, ay, az = cam_verts[a]
     bx, by, bz = cam_verts[b]
 
+    if az < NEAR and bz < NEAR:
+      continue
+
+    if az < NEAR:
+      t = (NEAR - az) / (bz - az)
+      ax = ax + t * (bx - ax)
+      ay = ay + t * (by - ay)
+      az = NEAR
+      
+    elif bz < NEAR:
+      t = (NEAR - az) / (bz - az)
+      bx = ax + t * (bx - ax)
+      by = ay + t * (by - ay)
+      bz = NEAR
+    
     s_ax = SCR_CEN_X + ax / az * PROJ_S
     s_ay = SCR_CEN_Y - ay / az * PROJ_S
     s_bx = SCR_CEN_X + bx / bz * PROJ_S
     s_by = SCR_CEN_Y - by / bz * PROJ_S
-    
-    bresenham(s_ax, s_ay, s_bx, s_by)
+
+    clipped = cohen_sutherland(s_ax, s_ay, s_bx, s_by)
+    if clipped is not None:
+      s_ax, s_ay, s_bx, s_by = clipped
+      bresenham(s_ax, s_ay, s_bx, s_by)
 
 def update(dt):
   global rot_x, rot_y, sin_x, cos_x, sin_y, cos_y, obj_x, obj_y, obj_z
