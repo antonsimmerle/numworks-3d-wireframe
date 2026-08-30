@@ -27,13 +27,12 @@ TRANS_SPEED = 1.0
 obj_x = 0.0
 obj_y = 0.0
 obj_z = 2.0
-rot_x = 0.0
-rot_y = 0.0
 
-sin_x = 0.0
-cos_x = 1.0
-sin_y = 0.0
-cos_y = 1.0
+orient = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1]
+]
 
 VERTS = (
   (-0.5, -0.5, 0.5),
@@ -145,18 +144,15 @@ def draw():
   for i, p in enumerate(VERTS):
     x, y, z = p
 
-    # Rotate around X
-    x1 = x
-    y1 = y * cos_x - z * sin_x
-    z1 = y * sin_x + z * cos_x
-    # Rotate around Y
-    x2 = x1 * cos_y + z1 * sin_y
-    y2 = y1
-    z2 = -x1 * sin_y + z1 * cos_y
+    # Apply orientation matrix to object vertices
+    rot_x = orient[0][0]*x + orient[0][1]*y + orient[0][2]*z
+    rot_y = orient[1][0]*x + orient[1][1]*y + orient[1][2]*z
+    rot_z = orient[2][0]*x + orient[2][1]*y + orient[2][2]*z
 
-    cam_verts[i][0] = x2 + obj_x
-    cam_verts[i][1] = y2 + obj_y
-    cam_verts[i][2] = z2 + obj_z
+    # Apply translation
+    cam_verts[i][0] = rot_x + obj_x
+    cam_verts[i][1] = rot_y + obj_y
+    cam_verts[i][2] = rot_z + obj_z
 
   # Near-plane clipping and drawing
   fill_rect(0, 0, SCR_W, SCR_H, WHITE)
@@ -190,7 +186,7 @@ def draw():
       bresenham(s_ax, s_ay, s_bx, s_by)
 
 def update(dt):
-  global rot_x, rot_y, sin_x, cos_x, sin_y, cos_y, obj_x, obj_y, obj_z
+  global orient, obj_x, obj_y, obj_z
 
   rot_dir_x = keydown(KEY_UP) - keydown(KEY_DOWN)
   rot_dir_y = keydown(KEY_LEFT) - keydown(KEY_RIGHT)
@@ -200,16 +196,32 @@ def update(dt):
 
   updated = False
 
-  if rot_dir_x:
-    rot_x += rot_dir_x * dt * ROT_SPEED
-    sin_x = sin(rot_x)
-    cos_x = cos(rot_x)
-    updated = True
+  if rot_dir_x != 0:
+    a = rot_dir_x * dt * ROT_SPEED
+    s = sin(a)
+    c = cos(a)
   
-  if rot_dir_y:
-    rot_y += rot_dir_y * dt * ROT_SPEED
-    sin_y = sin(rot_y)
-    cos_y = cos(rot_y)
+    for i in range(3):
+      y = orient[1][i]
+      z = orient[2][i]
+  
+      orient[1][i] = y*c - z*s
+      orient[2][i] = y*s + z*c
+  
+    updated = True
+
+  if rot_dir_y != 0:
+    a = rot_dir_y * dt * ROT_SPEED
+    s = sin(a)
+    c = cos(a)
+  
+    for i in range(3):
+      x = orient[0][i]
+      z = orient[2][i]
+  
+      orient[0][i] = x*c + z*s
+      orient[2][i] = -x*s + z*c
+  
     updated = True
 
   if trans_dir_x:
@@ -225,16 +237,15 @@ def update(dt):
     updated = True
 
   if keydown(KEY_FIVE):
-    rot_x = 0.0
-    rot_y = 0.0
     obj_x = 0.0
     obj_y = 0.0
     obj_z = 2.0
 
-    sin_x = 0.0
-    cos_x = 1.0
-    sin_y = 0.0
-    cos_y = 1.0
+    orient = [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ]
 
     updated = True
 
